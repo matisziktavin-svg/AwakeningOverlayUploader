@@ -35,11 +35,9 @@ class LogObserver:
 
 
         try:
-            # Keep the script running until interrupted
-            while True:
-                pass
+            while self.observer.is_alive():
+                self.observer.join(timeout=1)
         except KeyboardInterrupt:
-            print("Monitoring stopped.")
             self.observer.stop()
         finally:
             self.observer.join()

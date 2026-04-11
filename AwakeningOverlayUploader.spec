@@ -8,7 +8,8 @@ a = Analysis(
     datas=[
         ('static', 'static'),
         ('templates', 'templates'),
-        ('icon/aimi.ico', 'icon'),
+        ('characterImages', 'characterImages'),
+        ('awakeningImages', 'awakeningImages'),
     ],
     hiddenimports=[
         'flask',
@@ -34,8 +35,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
-    icon='icon/aimi.ico',
+    console=False,
 )
 
 coll = COLLECT(

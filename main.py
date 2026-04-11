@@ -1,11 +1,14 @@
-from watchdog.observers import Observer
-from observer import LogObserver
-from overlay_server import SharedState, start_flask_server
 import os
 import sys
-import time
+import queue
+import threading
+import tkinter as tk
 import pygetwindow
 from dotenv import load_dotenv
+
+from observer import LogObserver
+from overlay_server import SharedState, start_flask_server
+from gui import StatusWindow
 
 #pyinstaller --noconfirm AwakeningOverlayUploader.spec
 
@@ -16,13 +19,12 @@ def is_omega_strikers_window_open():
     for window in windows:
         if game_title in window.title:
             return True
-    print("Omega strikers is not running. closing app.")
     return False
 
 def loadfromenv():
     load_dotenv()
 
-    TEST_LOG_FLAG = os.getenv('TEST_LOG_FLAG', 'False').lower() == 'true'  # stores a boolean
+    TEST_LOG_FLAG = os.getenv('TEST_LOG_FLAG', 'False').lower() == 'true'
     OVERLAY_PORT = int(os.getenv('OVERLAY_PORT', '5000'))
 
     if TEST_LOG_FLAG is True:
@@ -33,19 +35,34 @@ def loadfromenv():
     return TEST_LOG_FLAG, TEST_LOG_FILEPATH, OVERLAY_PORT
 
 def main():
+    # Required for console=False PyInstaller builds — print() would crash otherwise
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
     TEST_LOG_FLAG, TEST_LOG_FILEPATH, OVERLAY_PORT = loadfromenv()
 
-    if TEST_LOG_FLAG is False:
-        if is_omega_strikers_window_open() is False:
-            print('Omega Strikers is not open. Exiting App in 10 seconds.')
-            time.sleep(10)
-            os._exit(0)
+    overlay_url = f"http://127.0.0.1:{OVERLAY_PORT}/"
+    status_queue = queue.Queue()
+    root = tk.Tk()
+    window = StatusWindow(root, status_queue, overlay_url)
+
+    if not TEST_LOG_FLAG and not is_omega_strikers_window_open():
+        status_queue.put("Omega Strikers not detected. Closing in 10s...")
+        root.after(10_000, root.destroy)
+        window.run()
+        os._exit(0)
 
     shared_state = SharedState()
     start_flask_server(shared_state, OVERLAY_PORT)
 
+    status_queue.put("Monitoring log file...")
     log_observer = LogObserver(TEST_LOG_FILEPATH, shared_state)
-    log_observer.start_monitoring()
+    threading.Thread(target=log_observer.start_monitoring, daemon=True, name="MonitoringThread").start()
+
+    status_queue.put("Active — add URL to OBS Browser Source")
+    window.run()
 
 if __name__ == "__main__":
     main()
