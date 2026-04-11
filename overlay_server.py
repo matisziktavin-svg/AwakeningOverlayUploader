@@ -55,6 +55,12 @@ class SharedState:
             self._state["players"] = players
             self._state["game_count"] += 1
 
+    def clear(self):
+        """Blank the overlay by setting players to None and bumping game_count."""
+        with self._lock:
+            self._state["players"] = None
+            self._state["game_count"] += 1
+
     def get(self) -> dict:
         with self._lock:
             return dict(self._state)

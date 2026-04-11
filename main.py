@@ -46,10 +46,10 @@ def main():
     overlay_url = f"http://127.0.0.1:{OVERLAY_PORT}/"
     status_queue = queue.Queue()
     root = tk.Tk()
-    window = StatusWindow(root, status_queue, overlay_url)
 
     if not TEST_LOG_FLAG and not is_omega_strikers_window_open():
         status_queue.put("Omega Strikers not detected. Closing in 10s...")
+        window = StatusWindow(root, status_queue, overlay_url)
         root.after(10_000, root.destroy)
         window.run()
         os._exit(0)
@@ -62,6 +62,7 @@ def main():
     threading.Thread(target=log_observer.start_monitoring, daemon=True, name="MonitoringThread").start()
 
     status_queue.put("Active — add URL to OBS Browser Source")
+    window = StatusWindow(root, status_queue, overlay_url, refresh_callback=log_observer.rescan)
     window.run()
 
 if __name__ == "__main__":

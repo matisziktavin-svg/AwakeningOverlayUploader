@@ -61,6 +61,14 @@ MOST_RECENTLY_PUBLISHED_TABLE
 
         #print(cleaned_line)
 
+        # Game over — wipe state and signal the overlay to go blank
+        if "Current[EMatchPhase::PostGameCelebration]" in cleaned_line:
+            time.sleep(0.01)
+            reset_lists(
+                CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
+            print("PostGameCelebration detected — overlay cleared.")
+            return "CLEAR"
+
         # Soft reset if new game is detected
         #time.sleep(0.01)
         if "Current[EMatchPhase::CharacterSelect]" in cleaned_line:
@@ -190,7 +198,10 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         if ign in DICT_IGN_TO_CHARACTER:
                             continue  # already linked to a different character
                         ign_awks = set(DICT_IGN_TO_AWAKENINGS.get(ign, []))
-                        if tag_awk_set and tag_awk_set.issubset(ign_awks):
+                        # Use exact equality — subset matching causes false positives when
+                        # players share common awakenings (e.g. one player's set is a subset
+                        # of another's, causing the wrong character link).
+                        if tag_awk_set and tag_awk_set == ign_awks:
                             DICT_IGN_TO_CHARACTER[ign] = char_external
                             print(f"Tags-linked: {ign} → {char_external} (via {tag_awk_set})")
                             updated = True
@@ -310,27 +321,16 @@ def CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DI
     print("DEBUG: DICT_IGN_TO_AWAKENINGS =", DICT_IGN_TO_AWAKENINGS)
     print("DEBUG: DICT_IGN_TO_CHARACTER =", DICT_IGN_TO_CHARACTER)
 
-    # Build a reverse-lookup table: frozenset(awakenings) → character.
-    # This uses the already-confirmed IGN→character + IGN→awakenings entries so that
-    # any IGN whose C_xxx_C token was missing from the trainings line can still be
-    # identified by matching their awakening set against a known character's set.
+    # Characters come from DICT_IGN_TO_CHARACTER, populated by:
+    #   1. equipping-trainings lines (primary — C_xxx_C token)
+    #   2. Despawn/KO events (secondary)
+    #   3. Tags exact-match (tertiary)
+    # If an IGN is still unmapped, we leave character as "" rather than guessing,
+    # to avoid showing the wrong portrait.
     ign_to_char = DICT_IGN_TO_CHARACTER if DICT_IGN_TO_CHARACTER else {}
-    awakenings_to_character = {}
-    for confirmed_ign, confirmed_char in ign_to_char.items():
-        confirmed_awks = DICT_IGN_TO_AWAKENINGS.get(confirmed_ign, [])
-        if confirmed_awks:
-            awakenings_to_character[frozenset(confirmed_awks)] = confirmed_char
 
-    # Iterate over IGNs (in natural arrival order).
-    # Characters come from DICT_IGN_TO_CHARACTER (populated by equipping-trainings and
-    # Despawn log lines). If an IGN is still missing, fall back to matching their
-    # awakening set against the reverse-lookup built above.
     for ign in IGN_LIST:
         character = ign_to_char.get(ign, "")
-        if not character:
-            ign_awks = DICT_IGN_TO_AWAKENINGS.get(ign, [])
-            if ign_awks:
-                character = awakenings_to_character.get(frozenset(ign_awks), "")
         awakenings = DICT_IGN_TO_AWAKENINGS.get(ign, [])
 
         row = [character, ign] + awakenings
