@@ -51,6 +51,8 @@ class LogHandler(FileSystemEventHandler):
         self.CHARACTERS_LIST = []
         self.IGN_LIST = []
         self.DICT_IGN_TO_AWAKENINGS = OrderedDict() # initializes an empty ordered dict.
+        self.DICT_IGN_TO_CHARACTER = {}
+        self.DICT_IGN_TO_TEAM = {}
         self.ALL_LOGS_THIS_GAME = []
         self.MOST_RECENTLY_PUBLISHED_TABLE = []
         self.BOOLEAN_CONSIDER_UPLOAD = False
@@ -86,6 +88,8 @@ class LogHandler(FileSystemEventHandler):
                             self.CHARACTERS_LIST,
                             self.IGN_LIST,
                             self.DICT_IGN_TO_AWAKENINGS,
+                            self.DICT_IGN_TO_CHARACTER,
+                            self.DICT_IGN_TO_TEAM,
                             self.ALL_LOGS_THIS_GAME,
                             self.MOST_RECENTLY_PUBLISHED_TABLE,
                         )
@@ -95,6 +99,7 @@ class LogHandler(FileSystemEventHandler):
                                 self.CHARACTERS_LIST,
                                 self.IGN_LIST,
                                 self.DICT_IGN_TO_AWAKENINGS,
+                                self.DICT_IGN_TO_CHARACTER,
                                 self.ALL_LOGS_THIS_GAME,
                                 self.MOST_RECENTLY_PUBLISHED_TABLE,
                             )  # Check again.
@@ -109,6 +114,8 @@ class LogHandler(FileSystemEventHandler):
                                     self.CHARACTERS_LIST,
                                     self.IGN_LIST,
                                     self.DICT_IGN_TO_AWAKENINGS,
+                                    self.DICT_IGN_TO_CHARACTER,
+                                    self.DICT_IGN_TO_TEAM,
                                     self.ALL_LOGS_THIS_GAME,
                                     self.MOST_RECENTLY_PUBLISHED_TABLE,
                                 )

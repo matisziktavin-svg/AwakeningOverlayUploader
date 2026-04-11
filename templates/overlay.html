@@ -19,8 +19,8 @@
       top: 0;
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      padding: 5px;
+      gap: 20px;
+      padding: 20px;
     }
     .team-left  { left: 0; }
     .team-right { right: 0; }
@@ -37,7 +37,7 @@
       overflow: visible;
 
       /* Parallelogram: right end slants backward at bottom (left team) */
-      clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
+      clip-path: polygon(0 0, 100% 0, calc(100% - 64px) 100%, 0 100%);
 
       /* ── Multi-band dark steel ──
          Real metal has multiple tonal bands — bright edge, dark body,
@@ -47,10 +47,10 @@
         /* Diagonal brush lines — 78° mimics milled aluminium */
         repeating-linear-gradient(
           78deg,
-          transparent           0px,
-          transparent           3px,
-          rgba(255,255,255,0.020) 3px,
-          rgba(255,255,255,0.020) 4px
+          transparent            0px,
+          transparent            12px,
+          rgba(255,255,255,0.020) 12px,
+          rgba(255,255,255,0.020) 16px
         ),
         /* Tonal metal bands — vary brightness, add subtle blue-steel tint */
         linear-gradient(
@@ -69,38 +69,38 @@
 
       /* LED glow follows the clip-path parallelogram shape */
       filter:
-        drop-shadow(0 0 7px  rgba(0, 150, 255, 0.55))
-        drop-shadow(0 0 2px  rgba(0, 210, 255, 0.80))
-        drop-shadow(0 0 18px rgba(0, 110, 230, 0.20));
+        drop-shadow(0 0 28px rgba(0, 150, 255, 0.55))
+        drop-shadow(0 0 8px  rgba(0, 210, 255, 0.80))
+        drop-shadow(0 0 72px rgba(0, 110, 230, 0.20));
     }
 
     /* Right team: mirror clip + red LED */
     .team-right .player-row {
-      clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%);
+      clip-path: polygon(64px 0, 100% 0, 100% 100%, 0 100%);
       filter:
-        drop-shadow(0 0 7px  rgba(230, 40,  40,  0.60))
-        drop-shadow(0 0 2px  rgba(255, 90,  90,  0.85))
-        drop-shadow(0 0 18px rgba(180, 20,  20,  0.22));
+        drop-shadow(0 0 28px rgba(230, 40,  40,  0.60))
+        drop-shadow(0 0 8px  rgba(255, 90,  90,  0.85))
+        drop-shadow(0 0 72px rgba(180, 20,  20,  0.22));
     }
 
     /* ── Top section: portrait + gear + awakening slots ── */
     .player-top {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 20px 2px 4px; /* right pad clears the clip-path slant */
+      gap: 16px;
+      padding: 12px 80px 8px 16px; /* right pad clears the clip-path slant */
     }
     .team-right .player-top {
       flex-direction: row-reverse;
-      padding: 3px 4px 2px 20px; /* left pad clears the clip-path slant */
+      padding: 12px 16px 8px 80px; /* left pad clears the clip-path slant */
     }
 
     /* ── Nameplate bar — its own distinct element ── */
     .nameplate {
       display: flex;
       align-items: center;
-      padding: 2px 22px 3px 6px; /* right pad: leave room for the slanted cut */
-      gap: 5px;
+      padding: 8px 88px 12px 24px; /* right pad: leave room for the slanted cut */
+      gap: 20px;
       position: relative;
 
       /* Darker recessed plate — clearly different from the steel body */
@@ -113,12 +113,12 @@
         );
 
       /* Top accent line — the LED strip separating plate from body */
-      border-top: 1px solid rgba(30, 140, 255, 0.75);
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.70);
+      border-top: 4px solid rgba(30, 140, 255, 0.75);
+      box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.70);
     }
     .team-right .nameplate {
       flex-direction: row-reverse;
-      padding: 2px 6px 3px 22px;
+      padding: 8px 24px 12px 88px;
       border-top-color: rgba(230, 50, 50, 0.80);
       text-align: right;
     }
@@ -127,50 +127,50 @@
     .nameplate::before {
       content: '';
       display: block;
-      width: 3px;
-      height: 9px;
+      width: 12px;
+      height: 36px;
       flex-shrink: 0;
       background: rgba(60, 160, 255, 0.90);
-      box-shadow: 0 0 5px rgba(60, 160, 255, 0.80);
+      box-shadow: 0 0 20px rgba(60, 160, 255, 0.80);
     }
     .team-right .nameplate::before {
       background: rgba(240, 70, 70, 0.90);
-      box-shadow: 0 0 5px rgba(240, 70, 70, 0.80);
+      box-shadow: 0 0 20px rgba(240, 70, 70, 0.80);
     }
 
     .ign-text {
       font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 9px;
+      font-size: 36px;
       font-weight: 700;
-      letter-spacing: 1.4px;
+      letter-spacing: 5.6px;
       text-transform: uppercase;
       color: #b8d4f0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       text-shadow:
-        0 0 6px rgba(60, 160, 255, 0.75),
-        0 0 2px rgba(0, 100, 220, 0.50);
+        0 0 24px rgba(60, 160, 255, 0.75),
+        0 0 8px  rgba(0, 100, 220, 0.50);
     }
     .team-right .ign-text {
       color: #f0c0c0;
       text-shadow:
-        0 0 6px rgba(240, 80, 80, 0.75),
-        0 0 2px rgba(180, 30, 30, 0.55);
+        0 0 24px rgba(240, 80, 80, 0.75),
+        0 0 8px  rgba(180, 30, 30, 0.55);
     }
 
     /* ── Char portrait ── */
     .char-and-gear {
       display: flex;
       align-items: flex-end;
-      gap: 2px;
+      gap: 8px;
       flex-shrink: 0;
     }
 
     .char-box {
-      width: 26px;
-      height: 26px;
-      border-radius: 1px;
+      width: 104px;
+      height: 104px;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -179,14 +179,14 @@
 
       /* Beveled inset box — bright top/left, dark bottom/right */
       background: #080c14;
-      border-top:    1px solid rgba(90, 160, 230, 0.80);
-      border-left:   1px solid rgba(70, 130, 200, 0.65);
-      border-right:  1px solid rgba(10,  25,  50, 0.90);
-      border-bottom: 1px solid rgba(10,  20,  45, 0.95);
+      border-top:    4px solid rgba(90, 160, 230, 0.80);
+      border-left:   4px solid rgba(70, 130, 200, 0.65);
+      border-right:  4px solid rgba(10,  25,  50, 0.90);
+      border-bottom: 4px solid rgba(10,  20,  45, 0.95);
       box-shadow:
-        inset 1px 1px 0 rgba(100, 180, 255, 0.12),
-        inset -1px -1px 0 rgba(0, 0, 0, 0.50),
-        inset 0 0 8px rgba(0, 0, 0, 0.60);
+        inset 4px  4px  0 rgba(100, 180, 255, 0.12),
+        inset -4px -4px 0 rgba(0, 0, 0, 0.50),
+        inset 0 0 32px rgba(0, 0, 0, 0.60);
     }
     .team-right .char-box {
       border-top-color:    rgba(220,  90,  90, 0.80);
@@ -194,43 +194,43 @@
       border-right-color:  rgba( 50,  10,  10, 0.90);
       border-bottom-color: rgba( 45,  10,  10, 0.95);
       box-shadow:
-        inset 1px 1px 0 rgba(255, 120, 120, 0.10),
-        inset -1px -1px 0 rgba(0, 0, 0, 0.50),
-        inset 0 0 8px rgba(0, 0, 0, 0.60);
+        inset 4px  4px  0 rgba(255, 120, 120, 0.10),
+        inset -4px -4px 0 rgba(0, 0, 0, 0.50),
+        inset 0 0 32px rgba(0, 0, 0, 0.60);
     }
 
     .char-icon {
-      width: 24px;
-      height: 24px;
+      width: 96px;
+      height: 96px;
       object-fit: cover;
       display: block;
     }
     .char-fallback {
-      font-size: 6px;
+      font-size: 24px;
       color: #fff;
       text-align: center;
-      padding: 1px;
+      padding: 4px;
       line-height: 1.1;
       word-break: break-word;
-      text-shadow: 0 0 2px #000;
+      text-shadow: 0 0 8px #000;
     }
 
     /* ── Gear box ── */
     .gear-box {
-      width: 13px;
-      height: 13px;
-      border-radius: 1px;
+      width: 52px;
+      height: 52px;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       flex-shrink: 0;
       background: #060910;
-      border-top:    1px solid rgba(70, 130, 200, 0.70);
-      border-left:   1px solid rgba(50, 100, 170, 0.55);
-      border-right:  1px solid rgba(10,  20,  45, 0.90);
-      border-bottom: 1px solid rgba(10,  18,  40, 0.95);
-      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.65);
+      border-top:    4px solid rgba(70, 130, 200, 0.70);
+      border-left:   4px solid rgba(50, 100, 170, 0.55);
+      border-right:  4px solid rgba(10,  20,  45, 0.90);
+      border-bottom: 4px solid rgba(10,  18,  40, 0.95);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.65);
     }
     .team-right .gear-box {
       border-top-color:    rgba(200, 70, 70, 0.70);
@@ -239,27 +239,27 @@
       border-bottom-color: rgba( 40,  8,  8, 0.95);
     }
     .gear-icon {
-      width: 11px;
-      height: 11px;
+      width: 44px;
+      height: 44px;
       object-fit: cover;
       display: block;
     }
     .gear-fallback {
-      font-size: 5px;
+      font-size: 20px;
       color: #fff;
       text-align: center;
-      padding: 1px;
+      padding: 4px;
       line-height: 1.1;
       word-break: break-word;
-      text-shadow: 0 0 2px #000;
+      text-shadow: 0 0 8px #000;
     }
 
     /* ── Awakening slots ── */
     .awakenings {
       display: flex;
       align-items: center;
-      gap: 2px;
-      width: 118px;
+      gap: 8px;
+      width: 472px;
       flex-shrink: 0;
     }
     .team-right .awakenings {
@@ -268,9 +268,9 @@
 
     /* Filled awk cell — recessed machined pocket */
     .awk-box {
-      width: 22px;
-      height: 22px;
-      border-radius: 1px;
+      width: 88px;
+      height: 88px;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -286,14 +286,14 @@
           #080e18 55%,
           #101828 100%
         );
-      border-top:    1px solid rgba(70, 140, 220, 0.70);
-      border-left:   1px solid rgba(50, 110, 180, 0.55);
-      border-right:  1px solid rgba( 8,  18,  45, 0.90);
-      border-bottom: 1px solid rgba( 8,  16,  40, 0.95);
+      border-top:    4px solid rgba(70, 140, 220, 0.70);
+      border-left:   4px solid rgba(50, 110, 180, 0.55);
+      border-right:  4px solid rgba( 8,  18,  45, 0.90);
+      border-bottom: 4px solid rgba( 8,  16,  40, 0.95);
       box-shadow:
-        inset 1px 1px 0 rgba(90, 170, 255, 0.10),
-        inset -1px -1px 0 rgba(0, 0, 0, 0.60),
-        inset 0 0 8px rgba(0, 0, 0, 0.50);
+        inset 4px  4px  0 rgba(90, 170, 255, 0.10),
+        inset -4px -4px 0 rgba(0, 0, 0, 0.60),
+        inset 0 0 32px rgba(0, 0, 0, 0.50);
     }
     .team-right .awk-box {
       border-top-color:    rgba(210,  70,  70, 0.70);
@@ -301,9 +301,9 @@
       border-right-color:  rgba( 40,   8,   8, 0.90);
       border-bottom-color: rgba( 35,   6,   6, 0.95);
       box-shadow:
-        inset 1px 1px 0 rgba(255, 110, 110, 0.08),
-        inset -1px -1px 0 rgba(0, 0, 0, 0.60),
-        inset 0 0 8px rgba(0, 0, 0, 0.50);
+        inset 4px  4px  0 rgba(255, 110, 110, 0.08),
+        inset -4px -4px 0 rgba(0, 0, 0, 0.60),
+        inset 0 0 32px rgba(0, 0, 0, 0.50);
     }
 
     /* Starting awakening — bright white glow, neutral on both teams */
@@ -313,50 +313,50 @@
       border-right-color:  rgba( 60,  70, 100, 0.90) !important;
       border-bottom-color: rgba( 50,  60,  90, 0.95) !important;
       box-shadow:
-        0 0 8px  rgba(200, 220, 255, 0.70),
-        0 0 2px  rgba(240, 245, 255, 0.95),
-        inset 1px 1px 0 rgba(255, 255, 255, 0.15),
-        inset 0 0 10px rgba(0, 0, 0, 0.50) !important;
+        0 0 32px rgba(200, 220, 255, 0.70),
+        0 0 8px  rgba(240, 245, 255, 0.95),
+        inset 4px 4px 0 rgba(255, 255, 255, 0.15),
+        inset 0 0 40px rgba(0, 0, 0, 0.50) !important;
     }
 
     .awk-icon {
-      width: 18px;
-      height: 18px;
+      width: 72px;
+      height: 72px;
       object-fit: cover;
       display: block;
     }
     .awk-fallback {
-      font-size: 5px;
+      font-size: 20px;
       color: #ffffff;
       text-align: center;
-      padding: 1px;
+      padding: 4px;
       line-height: 1.1;
       word-break: break-word;
-      text-shadow: 0 0 2px #000;
+      text-shadow: 0 0 8px #000;
     }
 
     /* Empty slot — invisible spacer, same footprint as awk-box */
     .awk-empty {
-      width: 22px;
-      height: 22px;
+      width: 88px;
+      height: 88px;
       flex-shrink: 0;
     }
 
     /* ── Glow pulse animations ── */
     @keyframes glow-pulse-blue {
-      0%   { box-shadow: 0 0 12px 5px rgba(0, 170, 255, 0.95), inset 0 0 8px rgba(0,0,0,0.5); }
-      60%  { box-shadow: 0 0  7px 2px rgba(0, 150, 255, 0.45), inset 0 0 8px rgba(0,0,0,0.5); }
-      100% { box-shadow: inset 1px 1px 0 rgba(90,170,255,0.10), inset -1px -1px 0 rgba(0,0,0,0.60), inset 0 0 8px rgba(0,0,0,0.50); }
+      0%   { box-shadow: 0 0 48px 20px rgba(0, 170, 255, 0.95), inset 0 0 32px rgba(0,0,0,0.5); }
+      60%  { box-shadow: 0 0 28px 8px  rgba(0, 150, 255, 0.45), inset 0 0 32px rgba(0,0,0,0.5); }
+      100% { box-shadow: inset 4px 4px 0 rgba(90,170,255,0.10), inset -4px -4px 0 rgba(0,0,0,0.60), inset 0 0 32px rgba(0,0,0,0.50); }
     }
     @keyframes glow-pulse-red-team {
-      0%   { box-shadow: 0 0 12px 5px rgba(255, 80,  80,  0.95), inset 0 0 8px rgba(0,0,0,0.5); }
-      60%  { box-shadow: 0 0  7px 2px rgba(255, 60,  60,  0.45), inset 0 0 8px rgba(0,0,0,0.5); }
-      100% { box-shadow: inset 1px 1px 0 rgba(255,110,110,0.08), inset -1px -1px 0 rgba(0,0,0,0.60), inset 0 0 8px rgba(0,0,0,0.50); }
+      0%   { box-shadow: 0 0 48px 20px rgba(255, 80,  80,  0.95), inset 0 0 32px rgba(0,0,0,0.5); }
+      60%  { box-shadow: 0 0 28px 8px  rgba(255, 60,  60,  0.45), inset 0 0 32px rgba(0,0,0,0.5); }
+      100% { box-shadow: inset 4px 4px 0 rgba(255,110,110,0.08), inset -4px -4px 0 rgba(0,0,0,0.60), inset 0 0 32px rgba(0,0,0,0.50); }
     }
     @keyframes glow-pulse-starting {
-      0%   { box-shadow: 0 0 14px 6px rgba(220, 235, 255, 1.00), inset 0 0 10px rgba(0,0,0,0.5); }
-      60%  { box-shadow: 0 0  8px 3px rgba(200, 220, 255, 0.55), inset 0 0 10px rgba(0,0,0,0.5); }
-      100% { box-shadow: 0 0 8px rgba(200,220,255,0.70), 0 0 2px rgba(240,245,255,0.95), inset 1px 1px 0 rgba(255,255,255,0.15), inset 0 0 10px rgba(0,0,0,0.50); }
+      0%   { box-shadow: 0 0 56px 24px rgba(220, 235, 255, 1.00), inset 0 0 40px rgba(0,0,0,0.5); }
+      60%  { box-shadow: 0 0 32px 12px rgba(200, 220, 255, 0.55), inset 0 0 40px rgba(0,0,0,0.5); }
+      100% { box-shadow: 0 0 32px rgba(200,220,255,0.70), 0 0 8px rgba(240,245,255,0.95), inset 4px 4px 0 rgba(255,255,255,0.15), inset 0 0 40px rgba(0,0,0,0.50); }
     }
 
     .awk-box.new-pulse           { animation: glow-pulse-blue     600ms ease-out forwards; }
@@ -369,14 +369,14 @@
 
     #waiting-msg {
       position: fixed;
-      top: 6px;
-      left: 6px;
+      top: 24px;
+      left: 24px;
       font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 10px;
-      letter-spacing: 1px;
+      font-size: 40px;
+      letter-spacing: 4px;
       text-transform: uppercase;
       color: #6aacdf;
-      text-shadow: 0 0 8px rgba(0, 150, 255, 0.80), 0 0 2px #000;
+      text-shadow: 0 0 32px rgba(0, 150, 255, 0.80), 0 0 8px #000;
     }
   </style>
 </head>
@@ -405,7 +405,7 @@
       return img;
     }
 
-    function buildRow(player, playerIdx) {
+    function buildRow(player) {
       const row = document.createElement('div');
       row.className = 'player-row';
 
@@ -447,7 +447,7 @@
           const box = document.createElement('div');
           let cls = 'awk-box' + (i === 0 ? ' starting' : '');
           if (prevPlayers !== null) {
-            const prev = prevPlayers[playerIdx];
+            const prev = prevPlayers.find(p => p.ign === player.ign);
             const wasEmpty = !prev || !prev.awakenings[i + 1];
             if (wasEmpty) cls += ' new-pulse';
           }
@@ -494,8 +494,20 @@
       }
 
       waiting.style.display = 'none';
-      players.slice(0, 3).forEach((p, i) => teamLeft.appendChild(buildRow(p, i)));
-      players.slice(3, 6).forEach((p, i) => teamRight.appendChild(buildRow(p, i + 3)));
+
+      const team1 = players.filter(p => p.team === 1);
+      const team2 = players.filter(p => p.team === 2);
+      // Only use team split when every player is accounted for on one of the two sides.
+      // Partial data (e.g. roster cleared mid-game, or username mismatch) would cause
+      // some players to be silently dropped, so fall back to arrival order in that case.
+      if (team1.length + team2.length === players.length && team1.length > 0 && team2.length > 0) {
+        team1.forEach(p => teamLeft.appendChild(buildRow(p)));
+        team2.forEach(p => teamRight.appendChild(buildRow(p)));
+      } else {
+        // Fallback: no complete team data yet, split by arrival order
+        players.slice(0, 3).forEach(p => teamLeft.appendChild(buildRow(p)));
+        players.slice(3, 6).forEach(p => teamRight.appendChild(buildRow(p)));
+      }
 
       prevPlayers = players;
     }

@@ -1,4 +1,5 @@
 import re
+import json
 import time
 import sys
 import os
@@ -8,6 +9,8 @@ from collections import OrderedDict
 KEYWORDS = ["Application Will Terminate", "PostGameCelebration", "Tags: {'", "equipping trainings", "Num Trainings: 2"]
 KEYWORDS.extend(["EMatchPhase::VersusScreen", "LogPMSkinDataManager: UPMSkinDataManagerComponent::DetermineLobbyAnimation",
 "EMatchPhase::CharacterSelect"])  # Marks the start of a new game
+KEYWORDS.append("APMCharacter::Despawn_Multicast_Implementation")  # Links character class to player IGN
+KEYWORDS.append("custom-lobby-roster-v1")  # Roster updates — used to assign players to teams
 
 
 
@@ -45,6 +48,8 @@ def process_log_entry(line,
 CHARACTERS_LIST,
 IGN_LIST,
 DICT_IGN_TO_AWAKENINGS,
+DICT_IGN_TO_CHARACTER,
+DICT_IGN_TO_TEAM,
 ALL_LOGS_THIS_GAME,
 MOST_RECENTLY_PUBLISHED_TABLE
 ):
@@ -62,7 +67,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
             time.sleep(0.01)
             #CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME =
             reset_lists(
-            CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME)
+            CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
 
             ALL_LOGS_THIS_GAME.append(cleaned_line)
             return False
@@ -113,18 +118,21 @@ MOST_RECENTLY_PUBLISHED_TABLE
                     player = match.group(1)
                     if player not in IGN_LIST:
                         IGN_LIST.append(player)  # Add player to IGN_LIST
-                        #IGN_LIST = sorted(IGN_LIST)
-                        #IGN_LIST.sort()
-                        #time.sleep(0.1)
-                        #print(f"line 98 printing IGN_LIST {IGN_LIST}")
                         if(len(IGN_LIST)==6):
-                            IGN_LIST.sort()
                             print(f"printing a list of 6 igns {IGN_LIST}")
                             time.sleep(0.01)
-                            #we should upload. TODO
 
-                    trainings = [DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(t, t) for t in re.findall(r"TD_\w+", match.group(2)) if t.startswith("TD_")]
-                    trainings = [DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.get(t, t) for t in trainings]
+                    # Extract character class (C_xxx_C token) directly from the trainings line.
+                    # The token may appear with an instance-number suffix (e.g. C_FlashySwordsman_C_2147407801),
+                    # so we capture just the base class and ignore the trailing _\d+ if present.
+                    char_token_match = re.search(r'(C_\w+_C)(?:_\d+)?', match.group(2))
+                    if char_token_match:
+                        char_external = DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(char_token_match.group(1))
+                        if char_external:
+                            DICT_IGN_TO_CHARACTER[player] = char_external
+                            print(f"Linked character {char_external} to player {player}")
+
+                    trainings = [DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.get(t, t) for t in re.findall(r"TD_\w+", match.group(2))]
                     existing_trainings = DICT_IGN_TO_AWAKENINGS.get(player, [])  # Use get to avoid KeyError
 
                     if existing_trainings == trainings:
@@ -144,6 +152,106 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         #we should consider uploading, return True
                         return True
 
+            elif "Tags: {'" in cleaned_line:
+                # Tags lines emit keys in insertion order: each C_xxx_C key is immediately
+                # followed by the TD_xxx awakenings that belong to that character, until the
+                # next C_xxx_C key appears.  We exploit this ordering to match awakening sets
+                # against DICT_IGN_TO_AWAKENINGS and link IGNs to their character without
+                # needing a KO event.
+                #
+                # Elimination fallback (original behaviour) is kept: if exactly one IGN is
+                # still unlinked and the Tags line contains all 6 characters, we can infer
+                # the last assignment.
+                keys = re.findall(r"'(\w+)':", cleaned_line)
+
+                # Build char_class → [td_key, ...] from the ordered key sequence
+                char_awk_groups = {}   # insertion-ordered dict (Python 3.7+)
+                current_char = None
+                for key in keys:
+                    if re.match(r'C_\w+_C$', key):
+                        current_char = key
+                        char_awk_groups[current_char] = []
+                    elif key.startswith('TD_') and current_char is not None:
+                        char_awk_groups[current_char].append(key)
+
+                updated = False
+                for char_class, td_keys in char_awk_groups.items():
+                    if not td_keys:
+                        continue
+                    char_external = DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(char_class)
+                    if not char_external:
+                        continue
+                    # Convert internal TD keys → external names (same format stored in DICT_IGN_TO_AWAKENINGS)
+                    tag_awk_set = {DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.get(k, k) for k in td_keys}
+
+                    for ign in IGN_LIST:
+                        if DICT_IGN_TO_CHARACTER.get(ign) == char_external:
+                            break  # already correctly linked
+                        if ign in DICT_IGN_TO_CHARACTER:
+                            continue  # already linked to a different character
+                        ign_awks = set(DICT_IGN_TO_AWAKENINGS.get(ign, []))
+                        if tag_awk_set and tag_awk_set.issubset(ign_awks):
+                            DICT_IGN_TO_CHARACTER[ign] = char_external
+                            print(f"Tags-linked: {ign} → {char_external} (via {tag_awk_set})")
+                            updated = True
+                            break
+
+                # Elimination fallback when all 6 chars are present and only 1 IGN is unlinked
+                all_chars_in_tags = {DICT_INTERNAL_TO_EXTERNAL_CHARACTERS[cc]
+                                     for cc in char_awk_groups
+                                     if cc in DICT_INTERNAL_TO_EXTERNAL_CHARACTERS}
+                if len(all_chars_in_tags) == 6 and len(IGN_LIST) == 6:
+                    unassigned_igns = [ign for ign in IGN_LIST if ign not in DICT_IGN_TO_CHARACTER]
+                    unassigned_chars = all_chars_in_tags - set(DICT_IGN_TO_CHARACTER.values())
+                    if len(unassigned_igns) == 1 and len(unassigned_chars) == 1:
+                        ign = unassigned_igns[0]
+                        char = next(iter(unassigned_chars))
+                        DICT_IGN_TO_CHARACTER[ign] = char
+                        print(f"Tags-elimination: {ign} → {char}")
+                        updated = True
+
+                if updated:
+                    return True
+
+            elif "Despawn_Multicast_Implementation" in cleaned_line:
+                # Format: Character 'C_StalwartProtector_C_2147407801' (Player 'TTU Firebird')
+                # Fires on every KO and end-of-round; used to build DICT_IGN_TO_CHARACTER.
+                # The Tags handler above can infer the last unlinked player by elimination.
+                match = re.search(r"Character '(C_\w+_C)_\d+' \(Player '(.+?)'\)", cleaned_line)
+                if match:
+                    char_class = match.group(1)   # e.g. "C_StalwartProtector_C"
+                    ign = match.group(2)           # e.g. "TTU Firebird"
+                    char_external = DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(char_class)
+                    if char_external and ign in IGN_LIST:
+                        if DICT_IGN_TO_CHARACTER.get(ign) != char_external:
+                            DICT_IGN_TO_CHARACTER[ign] = char_external
+                            print(f"Character linked: {ign} → {char_external}")
+                            return True  # Trigger overlay re-publish
+
+            elif "custom-lobby-roster-v1" in cleaned_line:
+                # Parse team assignments from the WebSocket roster payload.
+                # The line contains escaped JSON: {"type":"custom-lobby-roster-v1","strData":"{...}"}
+                # strData holds team1Ids, team2Ids, and allPlayerProfiles (playerId + username).
+                m = re.search(r'"strData":"(.*)"}\s*$', cleaned_line)
+                if m:
+                    try:
+                        roster = json.loads(m.group(1).replace('\\"', '"'))
+                        id_to_name = {p['playerId']: p['username']
+                                      for p in roster.get('allPlayerProfiles', [])}
+                        DICT_IGN_TO_TEAM.clear()
+                        for pid in roster.get('team1Ids', []):
+                            username = id_to_name.get(pid)
+                            if username:
+                                DICT_IGN_TO_TEAM[username] = 1
+                        for pid in roster.get('team2Ids', []):
+                            username = id_to_name.get(pid)
+                            if username:
+                                DICT_IGN_TO_TEAM[username] = 2
+                        print(f"Team assignments updated: {DICT_IGN_TO_TEAM}")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        print(f"Failed to parse roster JSON: {e}")
+                return False
+
             elif "Application Will Terminate" in cleaned_line:
                 time.sleep(0.01)
                 #we should end app here TODO
@@ -153,12 +261,12 @@ MOST_RECENTLY_PUBLISHED_TABLE
 
 
 def return_true_if_should_upload(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS,
-ALL_LOGS_THIS_GAME, MOST_RECENTLY_PUBLISHED_TABLE):
+DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME, MOST_RECENTLY_PUBLISHED_TABLE):
 
     #checks if self.MOST_RECENTLY_PUBLISHED_TABLE is the same as what we would upload.
 
     #first, construct the table that we WOULD upload.
-    candidate_table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS)
+    candidate_table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER)
     #FIRST COLUMN should be characters list
 
     #SECOND COLUMN should IGN LIST
@@ -193,25 +301,39 @@ def iterate_dict_values_true_if_lengths_are_equal(DICT_IGN_TO_AWAKENINGS):
     #returns true if all are the same length.
     #returns false if something is uneven.
 
-def CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS):
+def CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER=None):
     # Initialize the 2D table to store the rows
     upload_table = []
-    IGN_LIST = sorted(IGN_LIST)
     print('construct_upload_table function called')
     print("DEBUG: CHARACTERS_LIST =", CHARACTERS_LIST)
     print("DEBUG: IGN_LIST =", IGN_LIST)
     print("DEBUG: DICT_IGN_TO_AWAKENINGS =", DICT_IGN_TO_AWAKENINGS)
-    DICT_IGN_TO_AWAKENINGS = OrderedDict(sorted(DICT_IGN_TO_AWAKENINGS.items()))
-    print (DICT_IGN_TO_AWAKENINGS)
+    print("DEBUG: DICT_IGN_TO_CHARACTER =", DICT_IGN_TO_CHARACTER)
 
-    # Use zip to pair elements from CHARACTERS_LIST and IGN_LIST
-    for character, ign in zip(CHARACTERS_LIST, IGN_LIST):
-        # Get the list of awakenings for this ign from the dictionary
+    # Build a reverse-lookup table: frozenset(awakenings) → character.
+    # This uses the already-confirmed IGN→character + IGN→awakenings entries so that
+    # any IGN whose C_xxx_C token was missing from the trainings line can still be
+    # identified by matching their awakening set against a known character's set.
+    ign_to_char = DICT_IGN_TO_CHARACTER if DICT_IGN_TO_CHARACTER else {}
+    awakenings_to_character = {}
+    for confirmed_ign, confirmed_char in ign_to_char.items():
+        confirmed_awks = DICT_IGN_TO_AWAKENINGS.get(confirmed_ign, [])
+        if confirmed_awks:
+            awakenings_to_character[frozenset(confirmed_awks)] = confirmed_char
+
+    # Iterate over IGNs (in natural arrival order).
+    # Characters come from DICT_IGN_TO_CHARACTER (populated by equipping-trainings and
+    # Despawn log lines). If an IGN is still missing, fall back to matching their
+    # awakening set against the reverse-lookup built above.
+    for ign in IGN_LIST:
+        character = ign_to_char.get(ign, "")
+        if not character:
+            ign_awks = DICT_IGN_TO_AWAKENINGS.get(ign, [])
+            if ign_awks:
+                character = awakenings_to_character.get(frozenset(ign_awks), "")
         awakenings = DICT_IGN_TO_AWAKENINGS.get(ign, [])
 
-
-        # Create the row and add it to the table
-        row = [character, ign] + awakenings  # Append each awakening in a new cell
+        row = [character, ign] + awakenings
         while len(row) < 8:
             row.append("")
         upload_table.append(row)
@@ -224,13 +346,15 @@ def publish_state(shared_state,
                   CHARACTERS_LIST,
                   IGN_LIST,
                   DICT_IGN_TO_AWAKENINGS,
+                  DICT_IGN_TO_CHARACTER,
+                  DICT_IGN_TO_TEAM,
                   ALL_LOGS_THIS_GAME,
                   MOST_RECENTLY_PUBLISHED_TABLE):
     """
     Constructs the current game state table and pushes it to the overlay shared state.
     Returns the table on success, or None if construction failed.
     """
-    table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS)
+    table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER)
     if table is None:
         return None
 
@@ -238,7 +362,8 @@ def publish_state(shared_state,
         {
             "character": row[0],
             "ign": row[1],
-            "awakenings": [a for a in row[2:] if a != ""]
+            "awakenings": [a for a in row[2:] if a != ""],
+            "team": DICT_IGN_TO_TEAM.get(row[1], 0),
         }
         for row in table
     ]
@@ -246,7 +371,10 @@ def publish_state(shared_state,
     print("Overlay state updated.")
     return table
 
-def reset_lists(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME):
+def reset_lists(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME):
+    # DICT_IGN_TO_TEAM is intentionally NOT cleared here — team assignments come from the
+    # lobby roster (before CharacterSelect) and must survive into the match. The next
+    # lobby's roster notification will overwrite team data for the following game.
 
     print('RESETTING LIST. PRINTING DICT_IGN_TO_AWAKENINGS OF LAST GAME...')
     print(IGN_LIST)
@@ -255,5 +383,6 @@ def reset_lists(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS
     CHARACTERS_LIST.clear()
     IGN_LIST.clear()
     DICT_IGN_TO_AWAKENINGS.clear()
+    DICT_IGN_TO_CHARACTER.clear()
     ALL_LOGS_THIS_GAME.clear()
 
