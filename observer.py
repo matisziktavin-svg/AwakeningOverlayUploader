@@ -1,26 +1,23 @@
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from collections import OrderedDict
-from processor import process_log_entry, return_true_if_should_upload, upload_table, testfunction
-from google_sheets_uploader import append_2d_table_as_values
+from processor import process_log_entry, return_true_if_should_upload, publish_state
 import os
 import sys
 import time
 from dotenv import load_dotenv
 
 class LogObserver:
-    def __init__(self, log_file_path, google_service, SPREADSHEET_ID, SHEET_NAME):
+    def __init__(self, log_file_path, shared_state):
         self.log_file_path = log_file_path
-        self.google_service = google_service
-        self.SPREADSHEET_ID = SPREADSHEET_ID
-        self.SHEET_NAME= SHEET_NAME
+        self.shared_state = shared_state
 
         self.observer = Observer()
 
 
 
     def start_monitoring(self):
-        event_handler = LogHandler(self.log_file_path, self.google_service, self.SPREADSHEET_ID, self.SHEET_NAME)
+        event_handler = LogHandler(self.log_file_path, self.shared_state)
         self.observer.schedule(event_handler, os.path.dirname(self.log_file_path), recursive=False)
         self.observer.start()
         print("Started monitoring log file.")
@@ -33,8 +30,8 @@ class LogObserver:
             try:
                 with open(self.log_file_path, 'a') as log_file:  # 'a' mode opens the file for appending
                     log_file.write('.\n')  # Write the dot and add a newline for readability
-            except:
-                pass
+            except (IOError, OSError) as e:
+                print(f"Warning: could not write trigger line to log file: {e}")
 
 
         try:
@@ -49,12 +46,9 @@ class LogObserver:
 
 class LogHandler(FileSystemEventHandler):
 
-    def __init__(self, log_file_path, google_service, SPREADSHEET_ID, SHEET_NAME):
+    def __init__(self, log_file_path, shared_state):
         self.log_file_path = log_file_path
-        self.google_service = google_service
-
-        self.SPREADSHEET_ID = SPREADSHEET_ID
-        self.SHEET_NAME= SHEET_NAME
+        self.shared_state = shared_state
 
         self.CHARACTERS_LIST = []
         self.IGN_LIST = []
@@ -65,7 +59,6 @@ class LogHandler(FileSystemEventHandler):
         self.file_size = 0
 
 
-        self.some_number= 1
 
     def on_modified(self, event):
         retry_count = 0
@@ -101,7 +94,6 @@ class LogHandler(FileSystemEventHandler):
 
                         if self.BOOLEAN_CONSIDER_UPLOAD:
                             self.BOOLEAN_CONSIDER_UPLOAD = return_true_if_should_upload(
-                                self.google_service,
                                 self.CHARACTERS_LIST,
                                 self.IGN_LIST,
                                 self.DICT_IGN_TO_AWAKENINGS,
@@ -109,21 +101,21 @@ class LogHandler(FileSystemEventHandler):
                                 self.MOST_RECENTLY_PUBLISHED_TABLE,
                             )  # Check again.
 
-                            # If it's still true, we should definitely upload.
+                            # If it's still true, we should definitely update the overlay.
                             if self.BOOLEAN_CONSIDER_UPLOAD:
                                 #print(self.DICT_IGN_TO_AWAKENINGS)  # Debug print
 
-                                # Upload to Google Sheets
-                                upload_table(
-                                    self.google_service,
-                                    self.SPREADSHEET_ID,
-                                    self.SHEET_NAME,
+                                # Update the overlay state
+                                new_table = publish_state(
+                                    self.shared_state,
                                     self.CHARACTERS_LIST,
                                     self.IGN_LIST,
                                     self.DICT_IGN_TO_AWAKENINGS,
                                     self.ALL_LOGS_THIS_GAME,
                                     self.MOST_RECENTLY_PUBLISHED_TABLE,
                                 )
+                                if new_table is not None:
+                                    self.MOST_RECENTLY_PUBLISHED_TABLE = new_table
 
                                 # Reset BOOLEAN_CONSIDER_UPLOAD after successful upload
                                 self.BOOLEAN_CONSIDER_UPLOAD = False

@@ -1,11 +1,8 @@
 import re
 import time
 import sys
-import ssl
 import os
 from collections import OrderedDict
-from google_sheets_uploader import append_2d_table_as_values, find_first_empty_row
-from googleapiclient.errors import HttpError
 
 # Keywords to filter log entries
 KEYWORDS = ["Application Will Terminate", "PostGameCelebration", "Tags: {'", "equipping trainings", "Num Trainings: 2"]
@@ -39,6 +36,7 @@ DICT_INTERNAL_TO_EXTERNAL_CHARACTERS = {
 DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS = {"TD_AvoidDamageHitHarder": "Glass Cannon", "TD_BarrierBuff": "Demolitionist", "TD_BaseStaggerAndRegen": "Reptile Remedy", "TD_BlessingCooldownRate": "Spark of Focus", "TD_BlessingMaxStagger": "Spark of Resilience", "TD_BlessingPower": "Spark of Strength", "TD_BlessingShare": "Spark of Leadership", "TD_BlessingSpeed": "Spark of Agility", "TD_BuffAndDebuffDuration": "Cast to Last", "TD_ComboATarget": "One-Two Punch", "TD_CreationSize": "Monumentalist", "TD_CreationSizeLifeTime": "Timeless Creator", "TD_DistancePower": "Deadeye", "TD_EdgePower": "Knife's Edge", "TD_EmpoweredHitsBuff": "Specialized Training", "TD_EnergyCatalyst": "Catalyst", "TD_EnergyConversion": "Egoist", "TD_EnergyDischarge": "Fire Up!", "TD_EnhancedOrbsCooldown": "Orb Ponderer" , "TD_EnhancedOrbsSpeed": "Orb Dancer", "TD_FasterDashes": "Super Surge", "TD_FasterDashes2": "Chronoboost", "TD_FasterDashes3": "Explosive Entrance", "TD_FasterProjectiles": "Missile Propulsion", "TD_FasterProjectiles2": "Aerials", "TD_FasterProjectiles3":"Siege Machine", "TD_HitAnythingRestoreStagger": "Tempo Swing", "TD_HitEnemyBurnThem": "Stinger", "TD_HitRockCooldown": "Hotshot", "TD_HitsIncreaseSpeedAndPower": "Stacks On Stacks", "TD_HitSpeed": "Fight Or Flight", "TD_HitsReduceCooldowns": "Perfect Form", "TD_IncreasedPowerWithMaxStagger": "OLD Unstoppable", "TD_IncreasedSpeedWithStagger": "Stagger Swagger", "TD_KOKing": "Prize Fighter", "TD_MovementAbilityCharges": "Twin Drive", "TD_MultiHitsReduceCooldowns": "Heavy Impact", "TD_OrbShare": "Orb Replicator", "TD_PrimaryAbilityCooldownReduction": "Rapid Fire", "TD_PrimaryEcho": "Primetime", "TD_ResistFirstHit": "Unstoppable", "TD_Revive":"Recovery Drone", "TD_ShrinkSelfGrowAllies": "Among Titans", "TD_SizeIncrease": "Built Different", "TD_SizeIncrease2": "Big Fish", "TD_SizePowerConversion": "Might of the Colossus", "TD_SpecialCooldownAfterRounds": "Extra Special", "TD_StackingSize": "Rampage", "TD_StaggerCooldownRateConversion": "Reverberation", "TD_StaggerPowerConversion": "Bulk Up", "TD_StaggerSpeedConversion": "Peak Performance", "TD_StrikeCooldownReduction": "Quick Strike", "TD_StrikeRockTowardsAllies": "Team Player", "TD_TakeDownReduceCooldowns": "Adrenaline Rush"}
 
 DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.update({"TD_MovementAbilitiesTeleport": "Eject Button", "TD_IncreasedSpeedCrossingMidfield": "Magnetized Soles", "TD_GainRampingSpeed": "Momentum Boots", "TD_HitEnemyDrainThem": "Siphoning Wand", "TD_GoalArcPower": "Powerhouse Pauldrons", "TD_HitStaggerEnemyCooldownReduction": "Pummelers", "TD_StrikeRockSpeedUp": "Slick Kicks", "TD_RangedStrike": "Strike Shot", "TD_KnockAnythingRecoverStagger": "Vicious Vambraces" })
+DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.update({"TD_IncreasedStatsWhileStaggered": "Berserker", "TD_AvoidKnockoutGainSpeed": "Omega Infused Accelerator", "TD_HitCoreGainCDR": "Inner Focus"})
 
 
 
@@ -86,6 +84,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
             if "LogPMSkinDataManager: UPMSkinDataManagerComponent::DetermineLobbyAnimation" in cleaned_line:
                 if(len(CHARACTERS_LIST)<6):
                     #print(f"line 109 Characters in the lobby so far {CHARACTERS_LIST}")
+                    converted_value = None
                     match = re.search(r"SD_([^_]+)", cleaned_line)
                     if match:
                         extracted_value = match.group(1)
@@ -96,8 +95,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         return
                     else:
                         print("Converted value:", converted_value)
-                        if (converted_value not in CHARACTERS_LIST):
-                            CHARACTERS_LIST.append(converted_value)
+                        CHARACTERS_LIST.append(converted_value)
                         if(len(CHARACTERS_LIST)>5):
                             time.sleep(0.01)
                             print(cleaned_line)
@@ -154,15 +152,8 @@ MOST_RECENTLY_PUBLISHED_TABLE
                 os._exit(0)
 
 
-def testfunction(some_number):
-    some_number = some_number + 1
-    return
-def return_true_if_should_upload(google_service, CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS,
-ALL_LOGS_THIS_GAME,MOST_RECENTLY_PUBLISHED_TABLE):
-
-    IGN_LIST = sorted(IGN_LIST)
-
-    DICT_IGN_TO_AWAKENINGS = OrderedDict(sorted(DICT_IGN_TO_AWAKENINGS.items()))
+def return_true_if_should_upload(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS,
+ALL_LOGS_THIS_GAME, MOST_RECENTLY_PUBLISHED_TABLE):
 
     #checks if self.MOST_RECENTLY_PUBLISHED_TABLE is the same as what we would upload.
 
@@ -229,50 +220,31 @@ def CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS):
     return upload_table
 
 
-def upload_table(google_service,
-                 SPREADSHEET_ID,
-                 SHEET_NAME,
-                 CHARACTERS_LIST,
-                 IGN_LIST,
-                 DICT_IGN_TO_AWAKENINGS,
-                 ALL_LOGS_THIS_GAME,
-                 MOST_RECENTLY_PUBLISHED_TABLE):
+def publish_state(shared_state,
+                  CHARACTERS_LIST,
+                  IGN_LIST,
+                  DICT_IGN_TO_AWAKENINGS,
+                  ALL_LOGS_THIS_GAME,
+                  MOST_RECENTLY_PUBLISHED_TABLE):
     """
-    Constructs and uploads a table to Google Sheets and updates the most recent table.
-    Retries on errors until successful.
+    Constructs the current game state table and pushes it to the overlay shared state.
+    Returns the table on success, or None if construction failed.
     """
-    # Construct the table to upload
-    upload_this_table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS)
-    start_row = 1  # Starting row for the upload
+    table = CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS)
+    if table is None:
+        return None
 
-    # Define retry logic
-    retry_count = 0
-    max_retries = 10  # Optional: Limit retries to prevent infinite loops
-
-    while retry_count < max_retries:  # -1 for unlimited retries
-        try:
-            # Attempt to upload the table
-            append_2d_table_as_values(google_service, SPREADSHEET_ID, SHEET_NAME, start_row, upload_this_table)
-
-            # Update MOST_RECENTLY_PUBLISHED_TABLE after successful upload
-            MOST_RECENTLY_PUBLISHED_TABLE = upload_this_table
-            print("Table uploaded successfully!")
-            break  # Exit loop on success
-
-        except (HttpError, ssl.SSLEOFError, Exception) as e:
-            # Handle specific errors or general exceptions
-            retry_count += 1
-            print(f"Error during upload (attempt {retry_count}): {e}")
-
-            # Optional: Raise exception if retry limit is reached
-            if retry_count >= max_retries and max_retries != -1:
-                print("Max retries reached. Upload failed.")
-                raise
-
-            # Wait before retrying (exponential backoff)
-            wait_time = max(3, retry_count) #min(2 ** retry_count, 60)  # Max wait time is 60 seconds
-            print(f"Retrying in {wait_time} seconds...")
-            time.sleep(wait_time)
+    players = [
+        {
+            "character": row[0],
+            "ign": row[1],
+            "awakenings": [a for a in row[2:] if a != ""]
+        }
+        for row in table
+    ]
+    shared_state.update(players)
+    print("Overlay state updated.")
+    return table
 
 def reset_lists(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME):
 
@@ -285,7 +257,3 @@ def reset_lists(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS
     DICT_IGN_TO_AWAKENINGS.clear()
     ALL_LOGS_THIS_GAME.clear()
 
-    #return CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME
-
-    #we should check if... the player list and character list is empty. if its empty then return and do nothing.
-    #if its not empty, we should...

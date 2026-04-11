@@ -1,23 +1,20 @@
 # AwakeningOverlayUploader.spec
 # -*- mode: python ; coding: utf-8 -*-
-import os
-import glob
-from PyInstaller.utils.hooks import copy_metadata
 
 a = Analysis(
     ['main.py'],
     pathex=['.'],
     binaries=[],
-    datas = [
-        *[(f, 'credentials') for f in glob.glob('credentials/*')],
+    datas=[
+        ('static', 'static'),
+        ('templates', 'templates'),
         ('icon/aimi.ico', 'icon'),
-        ],
-        hiddenimports=[
-          'google.auth',
-          'google.oauth2',
-          'google_auth_oauthlib.flow',
-          'google.auth.transport.requests',
-      ],
+    ],
+    hiddenimports=[
+        'flask',
+        'jinja2',
+        'werkzeug',
+    ],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
@@ -36,9 +33,9 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,  # Disable UPX
-    console=True,  # Set to True if you need a console window for debugging
-    icon='icon/aimi.ico',  # Path to your icon file
+    upx=False,
+    console=True,
+    icon='icon/aimi.ico',
 )
 
 coll = COLLECT(
@@ -47,6 +44,6 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=False,  # Disable UPX
+    upx=False,
     name='AwakeningOverlayUploader'
 )
