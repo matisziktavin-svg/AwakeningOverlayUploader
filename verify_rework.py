@@ -183,6 +183,55 @@ def main():
         "raised an exception",
     )
 
+    # -- Check 7+: full replay of logsEXAMPLE/OmegaStrikers1.log ------------
+    log_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'logsEXAMPLE', 'OmegaStrikers1.log'
+    )
+    if not os.path.isfile(log_path):
+        print(f"  SKIP  full replay (no log file at {log_path})")
+    else:
+        state = _replay_file(log_path)
+        IGN_LIST = state[1]
+        DICT_IGN_TO_AWAKENINGS = state[2]
+        DICT_IGN_TO_CHARACTER = state[3]
+        DICT_IGN_TO_TEAM = state[4]
+
+        check(
+            "replay: IGN_LIST has 6 players (last game state)",
+            len(IGN_LIST) == 6,
+            f"got {len(IGN_LIST)}: {IGN_LIST}",
+        )
+        check(
+            "replay: every IGN has a team",
+            all(ign in DICT_IGN_TO_TEAM for ign in IGN_LIST),
+            f"missing teams for {[i for i in IGN_LIST if i not in DICT_IGN_TO_TEAM]}",
+        )
+        check(
+            "replay: every IGN has a character",
+            all(ign in DICT_IGN_TO_CHARACTER for ign in IGN_LIST),
+            f"missing characters for {[i for i in IGN_LIST if i not in DICT_IGN_TO_CHARACTER]}",
+        )
+        check(
+            "replay: every IGN has at least one awakening",
+            all(ign in DICT_IGN_TO_AWAKENINGS and DICT_IGN_TO_AWAKENINGS[ign] for ign in IGN_LIST),
+            f"missing or empty awakenings",
+        )
+        # Awakening lists must all be the same length (publish-gate invariant)
+        awk_lengths = {len(v) for v in DICT_IGN_TO_AWAKENINGS.values()}
+        check(
+            "replay: all awakening lists have equal length",
+            len(awk_lengths) == 1,
+            f"got mixed lengths {awk_lengths}",
+        )
+        # Teams must be exactly {1, 2} with 3 each
+        team_values = list(DICT_IGN_TO_TEAM.values())
+        check(
+            "replay: teams split 3-3",
+            team_values.count(1) == 3 and team_values.count(2) == 3,
+            f"got team distribution {sorted(team_values)}",
+        )
+
     if _failures:
         sys.exit(1)
     sys.exit(0)
