@@ -66,7 +66,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
             time.sleep(0.01)
             reset_lists(
                 CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
-            print("PostGameCelebration detected — overlay cleared.")
+            print("PostGameCelebration detected -- overlay cleared.")
             return "CLEAR"
 
         # Soft reset if new game is detected
@@ -151,19 +151,20 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         return True
 
             elif "Tags: {'" in cleaned_line:
-                # Tags lines emit keys in insertion order: each C_xxx_C key is immediately
-                # followed by the TD_xxx awakenings that belong to that character, until the
-                # next C_xxx_C key appears.  We exploit this ordering to match awakening sets
-                # against DICT_IGN_TO_AWAKENINGS and link IGNs to their character without
-                # needing a KO event.
+                # The Tags dict is a deduplicated multiset of currently-active GameplayTags
+                # across all 6 characters. Iteration order groups TD_X keys under the
+                # preceding C_X_C key. Because the dict deduplicates, shared awakenings
+                # appear once (under the first character iterated), so a character's
+                # per-character tag block is a *subset* of, not equal to, the awakening
+                # set of the player playing that character.
                 #
-                # Elimination fallback (original behaviour) is kept: if exactly one IGN is
-                # still unlinked and the Tags line contains all 6 characters, we can infer
-                # the last assignment.
+                # Match strategy: for each character whose tag block is non-empty, find
+                # all unlinked IGNs whose awakening set is a superset of the block.
+                # Commit (char -> IGN) only when exactly one candidate exists. Otherwise
+                # wait for more data (more rounds -> more divergence -> less ambiguity).
                 keys = re.findall(r"'(\w+)':", cleaned_line)
 
-                # Build char_class → [td_key, ...] from the ordered key sequence
-                char_awk_groups = {}   # insertion-ordered dict (Python 3.7+)
+                char_awk_groups = {}   # insertion-ordered: char_class -> [td_key, ...]
                 current_char = None
                 for key in keys:
                     if re.match(r'C_\w+_C$', key):
@@ -173,29 +174,27 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         char_awk_groups[current_char].append(key)
 
                 updated = False
+                already_linked_chars = set(DICT_IGN_TO_CHARACTER.values())
+
                 for char_class, td_keys in char_awk_groups.items():
                     if not td_keys:
                         continue
                     char_external = DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(char_class)
-                    if not char_external:
+                    if not char_external or char_external in already_linked_chars:
                         continue
-                    # Convert internal TD keys → external names (same format stored in DICT_IGN_TO_AWAKENINGS)
                     tag_awk_set = {DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.get(k, k) for k in td_keys}
 
-                    for ign in IGN_LIST:
-                        if DICT_IGN_TO_CHARACTER.get(ign) == char_external:
-                            break  # already correctly linked
-                        if ign in DICT_IGN_TO_CHARACTER:
-                            continue  # already linked to a different character
-                        ign_awks = set(DICT_IGN_TO_AWAKENINGS.get(ign, []))
-                        # Use exact equality — subset matching causes false positives when
-                        # players share common awakenings (e.g. one player's set is a subset
-                        # of another's, causing the wrong character link).
-                        if tag_awk_set and tag_awk_set == ign_awks:
-                            DICT_IGN_TO_CHARACTER[ign] = char_external
-                            print(f"Tags-linked: {ign} → {char_external} (via {tag_awk_set})")
-                            updated = True
-                            break
+                    candidates = [
+                        ign for ign in IGN_LIST
+                        if ign not in DICT_IGN_TO_CHARACTER
+                        and tag_awk_set.issubset(set(DICT_IGN_TO_AWAKENINGS.get(ign, [])))
+                    ]
+                    if len(candidates) == 1:
+                        ign = candidates[0]
+                        DICT_IGN_TO_CHARACTER[ign] = char_external
+                        already_linked_chars.add(char_external)
+                        print(f"Tags-linked: {ign} -> {char_external} (via {tag_awk_set})")
+                        updated = True
 
                 # Elimination fallback when all 6 chars are present and only 1 IGN is unlinked
                 all_chars_in_tags = {DICT_INTERNAL_TO_EXTERNAL_CHARACTERS[cc]
@@ -208,7 +207,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
                         ign = unassigned_igns[0]
                         char = next(iter(unassigned_chars))
                         DICT_IGN_TO_CHARACTER[ign] = char
-                        print(f"Tags-elimination: {ign} → {char}")
+                        print(f"Tags-elimination: {ign} -> {char}")
                         updated = True
 
                 if updated:
@@ -226,7 +225,7 @@ MOST_RECENTLY_PUBLISHED_TABLE
                     if char_external and ign in IGN_LIST:
                         if DICT_IGN_TO_CHARACTER.get(ign) != char_external:
                             DICT_IGN_TO_CHARACTER[ign] = char_external
-                            print(f"Character linked: {ign} → {char_external}")
+                            print(f"Character linked: {ign} -> {char_external}")
                             return True  # Trigger overlay re-publish
 
             elif "custom-lobby-roster-v1" in cleaned_line:
