@@ -64,7 +64,21 @@ def check(label, condition, detail=""):
 
 
 def main():
-    print("verify_rework.py: no checks defined yet.")
+    # ── Check 1: equipping-trainings does not populate DICT_IGN_TO_CHARACTER
+    state = _fresh_state()
+    _feed([
+        "LogGameMode: Current[EMatchPhase::CharacterSelect] Previous[EMatchPhase::None]",
+        "LogGameMode: Current[EMatchPhase::VersusScreen] Previous[EMatchPhase::CharacterSelect]",
+        "LogPMSkinDataManager: UPMSkinDataManagerComponent::DetermineLobbyAnimation SD_AngelicSupport",
+        "LogPMPlayerState: Player 'Foo' equipping trainings TrainingData:TD_RangedStrike , TrainingData:TD_ShrinkSelfGrowAllies , ",
+    ], state)
+    DICT_IGN_TO_CHARACTER = state[3]
+    check(
+        "equipping-trainings does not populate DICT_IGN_TO_CHARACTER",
+        DICT_IGN_TO_CHARACTER == {},
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+
     if _failures:
         sys.exit(1)
     sys.exit(0)

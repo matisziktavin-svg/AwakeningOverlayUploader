@@ -125,20 +125,10 @@ MOST_RECENTLY_PUBLISHED_TABLE
                 if match:
                     player = match.group(1)
                     if player not in IGN_LIST:
-                        IGN_LIST.append(player)  # Add player to IGN_LIST
-                        if(len(IGN_LIST)==6):
+                        IGN_LIST.append(player)
+                        if len(IGN_LIST) == 6:
                             print(f"printing a list of 6 igns {IGN_LIST}")
                             time.sleep(0.01)
-
-                    # Extract character class (C_xxx_C token) directly from the trainings line.
-                    # The token may appear with an instance-number suffix (e.g. C_FlashySwordsman_C_2147407801),
-                    # so we capture just the base class and ignore the trailing _\d+ if present.
-                    char_token_match = re.search(r'(C_\w+_C)(?:_\d+)?', match.group(2))
-                    if char_token_match:
-                        char_external = DICT_INTERNAL_TO_EXTERNAL_CHARACTERS.get(char_token_match.group(1))
-                        if char_external:
-                            DICT_IGN_TO_CHARACTER[player] = char_external
-                            print(f"Linked character {char_external} to player {player}")
 
                     trainings = [DICT_INTERNAL_TO_EXTERNAL_AWAKENINGS.get(t, t) for t in re.findall(r"TD_\w+", match.group(2))]
                     existing_trainings = DICT_IGN_TO_AWAKENINGS.get(player, [])  # Use get to avoid KeyError
