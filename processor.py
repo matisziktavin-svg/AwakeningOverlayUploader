@@ -230,26 +230,36 @@ MOST_RECENTLY_PUBLISHED_TABLE
 
             elif "custom-lobby-roster-v1" in cleaned_line:
                 # Parse team assignments from the WebSocket roster payload.
-                # The line contains escaped JSON: {"type":"custom-lobby-roster-v1","strData":"{...}"}
-                # strData holds team1Ids, team2Ids, and allPlayerProfiles (playerId + username).
-                m = re.search(r'"strData":"(.*)"}\s*$', cleaned_line)
-                if m:
-                    try:
-                        roster = json.loads(m.group(1).replace('\\"', '"'))
-                        id_to_name = {p['playerId']: p['username']
-                                      for p in roster.get('allPlayerProfiles', [])}
-                        DICT_IGN_TO_TEAM.clear()
-                        for pid in roster.get('team1Ids', []):
-                            username = id_to_name.get(pid)
-                            if username:
-                                DICT_IGN_TO_TEAM[username] = 1
-                        for pid in roster.get('team2Ids', []):
-                            username = id_to_name.get(pid)
-                            if username:
-                                DICT_IGN_TO_TEAM[username] = 2
-                        print(f"Team assignments updated: {DICT_IGN_TO_TEAM}")
-                    except (json.JSONDecodeError, KeyError) as e:
-                        print(f"Failed to parse roster JSON: {e}")
+                # The envelope is JSON-inside-JSON, of the form:
+                #   {"type":"custom-lobby-roster-v1","strData":"<escaped JSON>"}
+                # We slice between the literal `"strData":"` marker and the closing
+                # `"}` of the outer envelope, then decode the backslash-escaped inner
+                # JSON. Structural slicing avoids regex back-tracking on long lines.
+                start_marker = '"strData":"'
+                idx = cleaned_line.find(start_marker)
+                end = cleaned_line.rfind('"}')
+                if idx == -1 or end <= idx + len(start_marker):
+                    return False
+                escaped = cleaned_line[idx + len(start_marker):end]
+                try:
+                    # Inner JSON has its quotes backslash-escaped (\"). unicode_escape
+                    # reverses this and also handles \\, \n, etc.
+                    inner = escaped.encode('utf-8').decode('unicode_escape')
+                    roster = json.loads(inner)
+                    id_to_name = {p['playerId']: p['username']
+                                  for p in roster.get('allPlayerProfiles', [])}
+                    DICT_IGN_TO_TEAM.clear()
+                    for pid in roster.get('team1Ids', []):
+                        username = id_to_name.get(pid)
+                        if username:
+                            DICT_IGN_TO_TEAM[username] = 1
+                    for pid in roster.get('team2Ids', []):
+                        username = id_to_name.get(pid)
+                        if username:
+                            DICT_IGN_TO_TEAM[username] = 2
+                    print(f"Team assignments updated: {DICT_IGN_TO_TEAM}")
+                except (json.JSONDecodeError, KeyError, UnicodeDecodeError) as e:
+                    print(f"Failed to parse roster JSON: {e}")
                 return False
 
             elif "Application Will Terminate" in cleaned_line:

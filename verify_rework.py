@@ -79,6 +79,110 @@ def main():
         f"got {DICT_IGN_TO_CHARACTER!r}",
     )
 
+    # ── Check 2: round-1 starting-awakenings ambiguity — no commits when all share
+    state = _fresh_state()
+    state[1].extend(['A', 'B', 'C'])
+    state[2]['A'] = ['Among Titans', 'Explosive Entrance']
+    state[2]['B'] = ['Among Titans', 'Explosive Entrance']
+    state[2]['C'] = ['Among Titans', 'Explosive Entrance']
+    _feed([
+        "LogPMPerfStatsSubsystem: Tags: {'C_Shieldz_C': '1', 'TD_ShrinkSelfGrowAllies': '3', 'TD_FasterDashes3': '3', 'C_StalwartProtector_C': '1', 'C_EmpoweringEnchanter_C': '1'}",
+    ], state)
+    DICT_IGN_TO_CHARACTER = state[3]
+    check(
+        "round-1 identical-set Tags line commits nothing",
+        DICT_IGN_TO_CHARACTER == {},
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+
+    # ── Check 3: subset match commits when exactly one IGN's set is a superset
+    state = _fresh_state()
+    state[1].extend(['Alice', 'Bob', 'Carol'])
+    state[2]['Alice'] = ['Among Titans', 'Strike Shot']
+    state[2]['Bob']   = ['Among Titans', 'Hotshot']
+    state[2]['Carol'] = ['Among Titans', 'Aerials']
+    _feed([
+        "LogPMPerfStatsSubsystem: Tags: {'C_Shieldz_C': '1', 'TD_ShrinkSelfGrowAllies': '3', 'TD_RangedStrike': '1', 'C_StalwartProtector_C': '1', 'TD_HitRockCooldown': '1', 'C_EmpoweringEnchanter_C': '1', 'TD_FasterProjectiles2': '1'}",
+    ], state)
+    DICT_IGN_TO_CHARACTER = state[3]
+    check(
+        "subset match: Shieldz -> Alice (via Strike Shot)",
+        DICT_IGN_TO_CHARACTER.get('Alice') == 'Asher',
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+    check(
+        "subset match: StalwartProtector -> Bob (via Hotshot)",
+        DICT_IGN_TO_CHARACTER.get('Bob') == 'Dubu',
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+    check(
+        "subset match: EmpoweringEnchanter -> Carol (via Aerials)",
+        DICT_IGN_TO_CHARACTER.get('Carol') == 'Era',
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+
+    # ── Check 4: ambiguous subset (2 candidates) — skip Asher; still resolve Era
+    state = _fresh_state()
+    state[1].extend(['X', 'Y', 'Z'])
+    state[2]['X'] = ['Among Titans', 'Strike Shot']
+    state[2]['Y'] = ['Among Titans', 'Strike Shot']
+    state[2]['Z'] = ['Among Titans', 'Aerials']
+    _feed([
+        "LogPMPerfStatsSubsystem: Tags: {'C_Shieldz_C': '1', 'TD_ShrinkSelfGrowAllies': '3', 'TD_RangedStrike': '2', 'C_StalwartProtector_C': '1', 'C_EmpoweringEnchanter_C': '1', 'TD_FasterProjectiles2': '1'}",
+    ], state)
+    DICT_IGN_TO_CHARACTER = state[3]
+    check(
+        "ambiguous subset (2 candidates) commits nothing for Asher",
+        'Asher' not in DICT_IGN_TO_CHARACTER.values(),
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+    check(
+        "ambiguous Asher case still resolves Era -> Z",
+        DICT_IGN_TO_CHARACTER.get('Z') == 'Era',
+        f"got {DICT_IGN_TO_CHARACTER!r}",
+    )
+
+    # -- Check 5: real roster JSON produces correct team map ----------------
+    state = _fresh_state()
+    roster_line = (
+        'LogPMCustomLobbyModel: Verbose: \t\tRoster Notification: '
+        '{"type":"custom-lobby-roster-v1","strData":"{'
+        '\\"team1Ids\\":[\\"pidA\\",\\"pidB\\",\\"pidC\\"],'
+        '\\"team2Ids\\":[\\"pidD\\",\\"pidE\\",\\"pidF\\"],'
+        '\\"allPlayerProfiles\\":['
+        '{\\"username\\":\\"Alice\\",\\"playerId\\":\\"pidA\\"},'
+        '{\\"username\\":\\"Bob\\",\\"playerId\\":\\"pidB\\"},'
+        '{\\"username\\":\\"Carol\\",\\"playerId\\":\\"pidC\\"},'
+        '{\\"username\\":\\"Dave\\",\\"playerId\\":\\"pidD\\"},'
+        '{\\"username\\":\\"Eve\\",\\"playerId\\":\\"pidE\\"},'
+        '{\\"username\\":\\"Frank\\",\\"playerId\\":\\"pidF\\"}'
+        ']'
+        '}"}'
+    )
+    _feed([roster_line], state)
+    DICT_IGN_TO_TEAM = state[4]
+    expected = {'Alice': 1, 'Bob': 1, 'Carol': 1, 'Dave': 2, 'Eve': 2, 'Frank': 2}
+    check(
+        "roster JSON parses six players into correct teams",
+        DICT_IGN_TO_TEAM == expected,
+        f"got {DICT_IGN_TO_TEAM!r}",
+    )
+
+    # -- Check 6: malformed roster JSON does not crash ----------------------
+    state = _fresh_state()
+    state[4]['Pre'] = 1  # pre-existing assignment from a previous roster line
+    malformed = 'custom-lobby-roster-v1 "strData":"{not-valid-json'
+    try:
+        _feed([malformed], state)
+        crashed = False
+    except Exception:
+        crashed = True
+    check(
+        "malformed roster JSON does not raise",
+        not crashed,
+        "raised an exception",
+    )
+
     if _failures:
         sys.exit(1)
     sys.exit(0)
