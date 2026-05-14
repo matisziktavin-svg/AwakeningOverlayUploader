@@ -66,17 +66,16 @@ MOST_RECENTLY_PUBLISHED_TABLE
             time.sleep(0.01)
             reset_lists(
                 CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
+            MOST_RECENTLY_PUBLISHED_TABLE.clear()
             print("PostGameCelebration detected -- overlay cleared.")
             return "CLEAR"
 
         # Soft reset if new game is detected
-        #time.sleep(0.01)
         if "Current[EMatchPhase::CharacterSelect]" in cleaned_line:
             time.sleep(0.01)
-            #CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, ALL_LOGS_THIS_GAME =
             reset_lists(
-            CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
-
+                CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DICT_IGN_TO_CHARACTER, ALL_LOGS_THIS_GAME)
+            MOST_RECENTLY_PUBLISHED_TABLE.clear()
             ALL_LOGS_THIS_GAME.append(cleaned_line)
             return False
 
