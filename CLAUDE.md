@@ -63,7 +63,7 @@ Data flows in one direction: log file → `observer.py` → `processor.py` → `
 - `CHARACTERS_LIST` — ordered list of 6 character display names detected in lobby
 - `IGN_LIST` — ordered list of 6 player usernames
 - `DICT_IGN_TO_AWAKENINGS` — `{ign: [awakening1, awakening2, ...]}` (OrderedDict, grows each round)
-- `DICT_IGN_TO_CHARACTER` — `{ign: character_name}`, populated from three log sources in priority order: equipping-trainings lines > Despawn/KO events > Tags exact-match
+- `DICT_IGN_TO_CHARACTER` — `{ign: character_name}`, populated from two log sources: (1) `Despawn_Multicast_Implementation` events, which pair IGN+character directly but only fire on KO/round-end (round-1 portraits stay blank until the first KO); and (2) `Tags: {...}` per-character tag-block subset matching, which commits only when exactly one unlinked IGN's awakening set is a superset of the block. Tags matching degrades gracefully from blind in round 1 (shared `StartingAwakenings`) to reliable from round 2 onward.
 - `DICT_IGN_TO_TEAM` — `{ign: 1|2}`, from `custom-lobby-roster-v1` WebSocket event; intentionally NOT cleared on game reset
 
 ## `.env` variables

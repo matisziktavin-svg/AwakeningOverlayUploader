@@ -321,9 +321,8 @@ def CONSTRUCT_UPLOAD_TABLE(CHARACTERS_LIST, IGN_LIST, DICT_IGN_TO_AWAKENINGS, DI
     print("DEBUG: DICT_IGN_TO_CHARACTER =", DICT_IGN_TO_CHARACTER)
 
     # Characters come from DICT_IGN_TO_CHARACTER, populated by:
-    #   1. equipping-trainings lines (primary — C_xxx_C token)
-    #   2. Despawn/KO events (secondary)
-    #   3. Tags exact-match (tertiary)
+    #   1. Despawn/KO events (direct IGN+character pairing; reliable but late)
+    #   2. Tags subset+uniqueness matching (fills earlier when awakenings diverge)
     # If an IGN is still unmapped, we leave character as "" rather than guessing,
     # to avoid showing the wrong portrait.
     ign_to_char = DICT_IGN_TO_CHARACTER if DICT_IGN_TO_CHARACTER else {}
